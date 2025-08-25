@@ -1,1273 +1,0 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2942/2942076.png">
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الدفتر اليومي التفاعلي للأستاذ</title>
-
-    <!-- Google Fonts & Font Awesome -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.0/css/all.min.css">
-
-    <!-- External JS Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-
-    <style>
-        :root {
-            --primary-color: #2980b9; --secondary-color: #3498db; --header-bg: #ecf0f1;
-            --border-color: #bdc3c7; --text-color: #34495e; --sidebar-bg: #2c3e50;
-            --sidebar-hover: #34495e; --sidebar-active: #1abc9c; --danger-color: #c0392b;
-            --success-bg: #d4edda; --success-color: #155724; --error-bg: #f8d7da;
-            --error-color: #721c24; --info-bg: #d1ecf1; --info-color: #0c5460;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Cairo', sans-serif; margin: 0; background-color: #f0f2f5; color: var(--text-color); }
-        .container { display: flex; }
-        .sidebar { width: 280px; background-color: var(--sidebar-bg); color: white; padding: 20px; height: 100vh; position: fixed; overflow-y: auto; }
-        .sidebar h2 { text-align: center; color: #ecf0f1; margin-bottom: 30px; }
-        .sidebar ul { list-style-type: none; padding: 0; }
-        .sidebar ul li { padding: 15px 20px; cursor: pointer; transition: background-color 0.3s; border-right: 4px solid transparent; border-radius: 5px 0 0 5px; margin-bottom: 5px;}
-        .sidebar ul li:hover, .sidebar ul li.active { background-color: var(--sidebar-hover); border-right-color: var(--sidebar-active); }
-        .main-content { margin-right: 300px; padding: 25px; width: calc(100% - 300px); }
-        .content-section { display: none; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .content-section.active { display: block; }
-        .section-title { background: linear-gradient(to left, var(--primary-color), var(--secondary-color)); color: white; padding: 10px 20px; border-radius: 8px; text-align: center; font-size: 1.8em; margin: 0 0 30px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 1em; }
-        th, td { border: 1px solid var(--border-color); padding: 10px; text-align: center; vertical-align: middle; }
-        th { background-color: var(--header-bg); font-weight: 700; }
-        .notebook-input, .notebook-textarea, .form-input, .form-select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: transparent; font-family: inherit; font-size: 1em; box-sizing: border-box; }
-        .notebook-input, .notebook-textarea { border: none; }
-        .notebook-textarea { resize: vertical; min-height: 80px; }
-        .teacher-card-info p { font-size: 1.2em; padding: 10px 0; border-bottom: 1px dotted var(--border-color); display: flex; align-items: center; }
-        .teacher-card-info strong { display: inline-block; width: 200px; flex-shrink: 0; }
-        .table-actions { text-align: left; margin-top: 15px; }
-        .btn-add-row { background-color: var(--primary-color); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 0.9em; transition: background-color 0.3s; }
-        .btn-add-row:hover { background-color: var(--secondary-color); }
-        .btn-delete-row { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 1.2em; }
-        td.actions-cell { width: 60px; }
-        .seating-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; }
-        .seat { border: 1px solid #ccc; border-radius: 5px; padding: 5px; text-align: center; }
-        .seat .notebook-input { text-align: center; }
-        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; transition: all 0.3s ease; margin: 5px; display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; } .btn-add { background-color: #28a745; color: white; } .btn-report { background-color: #ffc107; color: #333; } .btn-secondary { background-color: #6c757d; color: white; } .btn-export { background-color: #17a2b8; color: white; } .btn-action { background-color: var(--secondary-color); color: white; font-size: 0.85em; padding: 4px 10px; } .btn-scan { background-color: #6f42c1; color: white; } .btn-stop-scan { background-color: #dc3545; color: white; } .btn-small { padding: 6px 12px; font-size: 0.9em; } .btn-delete { background-color: #dc3545; color: white; }
-        .form-section { background-color: #fdfdfd; padding: 25px; border-radius: 5px; margin-bottom: 25px; border: 1px solid #ddd; }
-        .form-section h2 { border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px; font-size: 1.5em; display: flex; align-items: center; gap: 10px; color: var(--primary-color); }
-        .form-group { margin-bottom: 15px; } .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .controls-container { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 25px; border: 1px solid #888; width: 80%; max-width: 350px; border-radius: 8px; text-align: center; position: relative; }
-        .close-btn { color: #aaa; position: absolute; left: 15px; top: 10px; font-size: 28px; font-weight: bold; cursor: pointer; }
-        #qrcode-container { margin: 20px auto; width: 256px; height: 256px; }
-        .view { display: none; } .view.active-view { display: block; }
-        .status-message { margin-top: 15px; padding: 12px 15px; border-radius: 5px; text-align: center; border: 1px solid transparent; }
-        .status-message.success { background-color: var(--success-bg); color: var(--success-color); border-color: #c3e6cb; }
-        .status-message.error { background-color: var(--error-bg); color: var(--error-color); border-color: #f5c6cb; }
-        .status-message.info { background-color: var(--info-bg); color: var(--info-color); border-color: #bee5eb; }
-        .status-message:empty { display: none; }
-        #print-qr-container { display: none; }
-        #weekly-schedule .notebook-textarea { min-height: 60px; }
-        .table-container { max-height: 450px; overflow: auto; border: 1px solid #ddd; background-color: #fff; margin-bottom: 20px; border-radius: 5px; }
-        @media print { body > *:not(#print-qr-container) { display: none !important; } #print-qr-container { display: block !important; } .print-page { page-break-after: always; display: block; } }
-    </style>
-</head>
-<body>
-<header style="background:#2980b9;color:white;padding:10px;text-align:center;font-size:1.5em;font-weight:bold;">
-    📘 الدفتر اليومي التفاعلي للأستاذ
-</header>
-
-<div class="container">
-    <div class="sidebar">
-        <h2>الدفتر الشامل</h2>
-        <ul>
-            <li onclick="showSection('welcome-page')" class="active">🏠 الصفحة الرئيسية</li>
-            <li onclick="showSection('teacher-card')">💳 البطاقة الفنية</li>
-            <li onclick="showSection('attendance-system')">✅ نظام الحضور والغياب</li>
-            <li onclick="showSection('daily-notebook')">📓 الدفتر اليومي</li>
-            <li onclick="showSection('weekly-schedule')">🗓️ الجدول الزمني للحصص</li>
-            <li onclick="showSection('assigned-groups')">👨‍🏫 الأفواج والتوقيت</li>
-            <li onclick="showSection('grading-book')">📊 دفتر التنقيط</li>
-            <li onclick="showSection('seating-chart')">🪑 مخطط الجلوس</li>
-            <li onclick="showSection('school-diary')">📅 اليومية المدرسية</li>
-            <li onclick="showSection('annual-distribution')">🗓️ التوزيع السنوي</li>
-            <li onclick="showSection('training-days')">🎓 الندوات والأيام التكوينية</li>
-            <li onclick="showSection('inspection-visits')">🔍 زيارات تفتيشية</li>
-            <li onclick="showSection('teachers-list')">👥 قائمة الأساتذة</li>
-            <li onclick="showSection('teacher-notepad')">📝 مفكرة الموارد</li>
-            <li onclick="showSection('data-management')">💾 إدارة البيانات</li>
-        </ul>
-    </div>
-
-    <div class="main-content" id="main-content-container">
-        <!-- Welcome Page -->
-        <div id="welcome-page" class="content-section active">
-            <h3 class="section-title">مرحباً بك في الإصدار المحدث من دفتر الأستاذ التفاعلي</h3>
-            <p style="text-align: center; font-size: 1.2em;">يجمع هذا الدفتر بين أدوات التنظيم ونظام متكامل لإدارة الحضور، مع حفظ تلقائي لجميع بياناتك.</p>
-        </div>
-        
-        <!-- البطاقة الفنية -->
-        <div id="teacher-card" class="content-section" data-type="map">
-            <h3 class="section-title">البطاقة الفنية للأستاذ(ة)</h3>
-            <div class="teacher-card-info">
-                <p><strong>الإسم واللقب:</strong> <input type="text" class="notebook-input" id="teacher_name"></p>
-                <p><strong>تاريخ ومكان الازدياد:</strong> <input type="text" class="notebook-input" id="teacher_birth"></p>
-                <p><strong>الحالة العائلية:</strong> <input type="text" class="notebook-input" id="teacher_status"></p>
-                <p><strong>العنوان:</strong> <input type="text" class="notebook-input" id="teacher_address"></p>
-                <p><strong>البريد الإلكتروني:</strong> <input type="email" class="notebook-input" id="teacher_email"></p>
-                <p><strong>رقم الهاتف:</strong> <input type="text" class="notebook-input" id="teacher_phone"></p>
-                <hr style="margin: 20px 0; border: 0; border-top: 1px dotted var(--border-color);">
-                <p><strong>التخصص:</strong> <input type="text" class="notebook-input" value="العلوم الفيزيائية" id="teacher_subject"></p>
-                <p><strong>تاريخ أول تعيين:</strong> <input type="text" class="notebook-input" id="teacher_start_date"></p>
-                <p><strong>اسم المؤسسة:</strong> <input type="text" class="notebook-input" id="teacher_school"></p>
-            </div>
-        </div>
-
-        <!-- نظام الحضور والغياب -->
-        <div id="attendance-system" class="content-section">
-            <div id="management-view" class="view active-view">
-                <h3 class="section-title">نظام إدارة الحضور والغياب</h3>
-                <section class="form-section">
-                    <h2><i class="fas fa-users"></i> قائمة الطلاب (<span id="total-students-count">0</span>)</h2>
-                    <div class="table-container"><table id="student-table"><thead><tr><th>الرقم</th><th>الاسم</th><th>اللقب</th><th>القسم</th><th>إجراءات</th></tr></thead><tbody id="student-list-body"></tbody></table></div>
-                    <div style="text-align: center; margin-top: 15px; display:flex; gap: 10px; justify-content:center; flex-wrap: wrap;">
-                        <button id="export-students-csv-btn" class="btn btn-export btn-small" disabled><i class="fas fa-file-csv"></i> تصدير CSV</button> 
-                        <button id="print-qr-cards-btn" class="btn btn-action btn-small" disabled><i class="fas fa-print"></i> طباعة بطاقات</button>
-                        <button id="download-qr-pdf-btn" class="btn btn-secondary btn-small" disabled><i class="fas fa-file-pdf"></i> تنزيل (PDF)</button>
-                        <button id="delete-all-students-btn" class="btn btn-delete btn-small" disabled><i class="fas fa-trash-alt"></i> حذف القائمة</button>
-                    </div>
-                </section>
-                <section class="form-section">
-                    <h2><i class="fas fa-user-plus"></i> إضافة أو استيراد الطلاب</h2>
-                    <form id="add-student-form"><div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;"><div class="form-group"><label for="first-name">الاسم:</label><input type="text" id="first-name" class="form-input" required></div><div class="form-group"><label for="last-name">اللقب:</label><input type="text" id="last-name" class="form-input" required></div><div class="form-group"><label for="student-id">رقم التعريف:</label><input type="text" id="student-id" class="form-input" required pattern="\d+"></div><div class="form-group"><label for="class-name">القسم:</label><input type="text" id="class-name" class="form-input" required></div><button type="submit" class="btn btn-add" style="height: fit-content;"><i class="fas fa-plus-circle"></i> إضافة</button></div></form>
-                    <div id="add-student-status" class="status-message"></div>
-                    <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; display:flex; align-items:center; gap: 10px;">
-                        <input type="file" id="import-file" accept=".csv, .xlsx, .xls"><button id="import-students-btn" class="btn btn-secondary btn-small"><i class="fas fa-upload"></i> استيراد من ملف</button>
-                    </div>
-                    <div id="import-status" class="status-message"></div>
-                </section>
-
-                <section id="qr-scanner-section" class="form-section">
-                    <h2><i class="fas fa-qrcode"></i> تسجيل الحضور بالمسح</h2>
-                    <div style="text-align: center; margin-bottom: 15px;"><button id="start-scan-btn" class="btn btn-scan"><i class="fas fa-camera"></i> بدء المسح</button><button id="stop-scan-btn" class="btn btn-stop-scan" style="display: none;"><i class="fas fa-stop-circle"></i> إيقاف</button></div>
-                    <div id="qr-reader" style="display: none; width: 100%; max-width: 500px; margin: auto; border: 1px solid #ddd; border-radius: 5px;"></div>
-                    <div id="qr-scan-status" class="status-message info"></div>
-                </section>
-
-                <section class="form-section">
-                    <h2><i class="fas fa-user-edit"></i> تسجيل الحضور اليدوي</h2>
-                    <div id="manual-attendance-container" class="table-container" style="max-height: 300px;">
-                        <table id="manual-attendance-table">
-                            <thead><tr><th>الحالة</th><th>الاسم الكامل</th><th>القسم</th></tr></thead>
-                            <tbody id="manual-attendance-list-body"></tbody>
-                        </table>
-                    </div>
-                    <div style="text-align: center; margin-top: 15px;">
-                        <button id="save-manual-attendance-btn" class="btn btn-add"><i class="fas fa-save"></i> حفظ الحضور اليدوي</button>
-                    </div>
-                    <div id="manual-attendance-status" class="status-message"></div>
-                </section>
-
-                <section style="text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;"><button id="go-to-report-btn" class="btn btn-report"><i class="fas fa-chart-line"></i> عرض التقرير اليومي</button></section>
-            </div>
-            <div id="report-view" class="view">
-                 <h3 class="section-title">تقرير الحضور اليومي</h3>
-                 <button id="back-to-management-btn" class="btn btn-small btn-secondary" style="position: absolute; top: 35px; left: 35px;"><i class="fas fa-arrow-right"></i> عودة</button>
-                 <div class="form-section"><div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 20px;"><label for="report-date" style="font-weight:bold;">تقرير ليوم:</label><input type="date" id="report-date"><button id="refresh-report-btn" class="btn btn-small btn-add"><i class="fas fa-sync-alt"></i> تحديث</button></div><div style="display:flex; justify-content:space-around; background-color:#e9ecef; padding: 12px; border-radius:4px; font-weight:bold;"><span>نسبة الحضور: <strong id="attendance-percentage">0%</strong></span> <span>الحاضرون: <strong id="present-count">0</strong></span> <span>الغائبون: <strong id="absent-count">0</strong></span></div></div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px;"><section><h3><i class="fas fa-user-check"></i> الحاضرون</h3><div class="table-container"><table id="present-table"><thead><tr><th>الاسم</th><th>القسم</th><th>الوقت</th></tr></thead><tbody id="present-list-body"></tbody></table></div></section><section><h3><i class="fas fa-user-times"></i> الغائبون</h3><div class="table-container"><table id="absent-table"><thead><tr><th>الاسم</th><th>القسم</th></tr></thead><tbody id="absent-list-body"></tbody></table></div></section></div>
-                 <div style="text-align: center; margin-top: 25px; display:flex; gap:10px; justify-content:center;">
-                    <button id="export-report-csv-btn" class="btn btn-export" disabled><i class="fas fa-file-csv"></i> تصدير (CSV)</button>
-                    <button id="export-report-pdf-btn" class="btn btn-secondary" disabled><i class="fas fa-file-pdf"></i> تنزيل (PDF)</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- الدفتر اليومي -->
-        <div id="daily-notebook" class="content-section" data-type="table">
-            <h3 class="section-title">الدفتر اليومي</h3>
-            <table><thead><tr><th>التاريخ</th><th>القسم</th><th>سير الحصة</th><th>الملاحظة</th><th class="actions-cell"></th></tr></thead><tbody id="daily-log-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('daily-log-tbody')">➕ إضافة حصة</button></div>
-        </div>
-
-        <!-- الجدول الزمني -->
-        <div id="weekly-schedule" class="content-section" data-type="table">
-            <h3 class="section-title">الجدول الزمني للحصص</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>اليوم</th>
-                        <th>08:00 - 09:00</th>
-                        <th>09:00 - 10:00</th>
-                        <th>10:00 - 11:00</th>
-                        <th>11:00 - 12:00</th>
-                        <th>14:00 - 15:00</th>
-                        <th>15:00 - 16:00</th>
-                        <th>16:00 - 17:00</th>
-                    </tr>
-                </thead>
-                <tbody id="schedule-tbody">
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- الأفواج المسندة -->
-        <div id="assigned-groups" class="content-section" data-type="table">
-            <h3 class="section-title">الأفواج المسندة والتوقيت</h3>
-            <table><thead><tr><th>المستوى</th><th>الفوج</th><th>عدد التلاميذ</th><th>الحجم الساعي</th><th class="actions-cell"></th></tr></thead><tbody id="groups-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('groups-tbody')">➕ إضافة فوج</button></div>
-        </div>
-        
-        <!-- دفتر التنقيط -->
-        <div id="grading-book" class="content-section">
-            <h3 class="section-title">دفتر التنقيط</h3>
-            <div class="controls-container">
-                <label for="grading-class-select" style="font-weight:bold;">اختر القسم:</label>
-                <select id="grading-class-select" class="form-select" style="width: 150px;"></select>
-                <input type="text" id="new-grading-class-name" class="form-input" placeholder="اسم القسم الجديد" style="width: 180px;">
-                <button id="add-grading-class-btn" class="btn btn-add btn-small"><i class="fas fa-plus"></i> إضافة قسم</button>
-                <button id="delete-grading-class-btn" class="btn btn-delete btn-small"><i class="fas fa-trash-alt"></i> حذف القسم الحالي</button>
-            </div>
-            <div id="grading-book-table-container">
-                <!-- جدول التنقيط سيظهر هنا -->
-            </div>
-        </div>
-
-        <!-- مخطط الجلوس -->
-        <div id="seating-chart" class="content-section">
-            <h3 class="section-title">مخطط الجلوس</h3>
-            <div class="controls-container">
-                <strong style="font-size: 1.1em;">إعداد المخطط:</strong>
-                <label for="seating-cols">عدد الأعمدة:</label>
-                <input type="number" id="seating-cols" value="5" min="1" class="form-input" style="width: 70px;">
-                <label for="seating-rows">عدد الصفوف:</label>
-                <input type="number" id="seating-rows" value="4" min="1" class="form-input" style="width: 70px;">
-                <button id="generate-seating-chart-btn" class="btn btn-secondary btn-small"><i class="fas fa-sync-alt"></i> إنشاء / تحديث</button>
-            </div>
-            <div class="seating-grid" id="seating-grid-container">
-                <!-- المقاعد سيتم إنشاؤها هنا -->
-            </div>
-        </div>
-
-        <!-- اليومية المدرسية -->
-        <div id="school-diary" class="content-section" data-type="table">
-            <h3 class="section-title">اليومية المدرسية (العطل والمناسبات)</h3>
-            <table><thead><tr><th>المناسبة</th><th>التاريخ</th><th>ملاحظات</th><th class="actions-cell"></th></tr></thead><tbody id="school-diary-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('school-diary-tbody')">➕ إضافة حدث</button></div>
-        </div>
-
-        <!-- التوزيع السنوي -->
-        <div id="annual-distribution" class="content-section" data-type="table">
-            <h3 class="section-title">التوزيع السنوي</h3>
-            <table><thead><tr><th>الشهر</th><th>الأسبوع</th><th>الوحدة</th><th class="actions-cell"></th></tr></thead><tbody id="annual-dist-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('annual-dist-tbody')">➕ إضافة</button></div>
-        </div>
-
-        <!-- الندوات والأيام التكوينية -->
-        <div id="training-days" class="content-section" data-type="table">
-            <h3 class="section-title">الندوات والأيام التكوينية</h3>
-            <table><thead><tr><th>التاريخ</th><th>الموضوع</th><th class="actions-cell"></th></tr></thead><tbody id="training-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('training-tbody')">➕ إضافة</button></div>
-        </div>
-
-        <!-- زيارات تفتيشية -->
-        <div id="inspection-visits" class="content-section" data-type="table">
-            <h3 class="section-title">زيارات تفتيشية</h3>
-            <table><thead><tr><th>التاريخ</th><th>الزائر</th><th>ملاحظات</th><th class="actions-cell"></th></tr></thead><tbody id="inspection-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('inspection-tbody')">➕ إضافة</button></div>
-        </div>
-
-        <!-- قائمة الأساتذة -->
-        <div id="teachers-list" class="content-section" data-type="table">
-            <h3 class="section-title">قائمة الأساتذة</h3>
-            <table><thead><tr><th>المادة</th><th>الأستاذ</th><th class="actions-cell"></th></tr></thead><tbody id="teachers-tbody"></tbody></table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addRow('teachers-tbody')">➕ إضافة</button></div>
-        </div>
-
-        <!-- مفكرة الموارد -->
-        <div id="teacher-notepad" class="content-section">
-            <h3 class="section-title">مفكرة الموارد</h3>
-            <section class="form-section">
-                <h2><i class="fas fa-plus-circle"></i> إضافة مورد جديد</h2>
-                <form id="add-resource-form">
-                    <div class="form-group">
-                        <label for="resource-name">اسم المورد:</label>
-                        <input type="text" id="resource-name" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="resource-category">تصنيف المورد:</label>
-                        <select id="resource-category" class="form-select">
-                            <option value="مذكرات">مذكرات</option>
-                            <option value="فروض">فروض</option>
-                            <option value="اختبارات">اختبارات</option>
-                            <option value="وثائق">وثائق</option>
-                            <option value="أخرى">أخرى</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="resource-file">اختر ملفاً:</label>
-                        <input type="file" id="resource-file" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="resource-desc">وصف قصير (اختياري):</label>
-                        <textarea id="resource-desc" class="form-input" rows="3"></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-add"><i class="fas fa-save"></i> حفظ المورد</button>
-                </form>
-                 <p class="status-message info" style="margin-top: 20px;"><b>ملاحظة:</b> يتم حفظ معلومات الملفات فقط (وليس الملفات نفسها) في هذا الدفتر. يجب الاحتفاظ بنسخة من الملفات على جهازك الخاص.</p>
-            </section>
-            <section>
-                <h2><i class="fas fa-list-ul"></i> قائمة الموارد المحفوظة</h2>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>اسم المورد</th><th>التصنيف</th><th>اسم الملف</th><th>الوصف</th><th class="actions-cell"></th></tr></thead>
-                        <tbody id="resource-list-tbody">
-                            <!-- الموارد تضاف هنا -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-
-        <!-- إدارة البيانات -->
-        <div id="data-management" class="content-section">
-            <h3 class="section-title">💾 إدارة بيانات الدفتر</h3>
-            <p>يمكنك هنا تصدير أو استيراد جميع بيانات دفترك. يتم الحفظ تلقائيًا أثناء الكتابة، وهذا فقط لإنشاء نسخة احتياطية أو نقل البيانات لجهاز آخر.</p>
-            <button onclick="exportAllData()" class="btn btn-export">⬇️ تصدير كل البيانات</button>
-            <br><br>
-            <input type="file" id="import-json" accept=".json" style="margin-top:10px;">
-            <button onclick="importAllData()" class="btn btn-add">⬆️ استيراد كل البيانات</button>
-            <div id="data-status" class="status-message"></div>
-
-            <div style="margin-top: 40px; border-top: 2px solid var(--danger-color); padding-top: 20px;">
-                <h3 style="color: var(--danger-color);">⚠️ منطقة الخطر</h3>
-                <p>سيؤدي الضغط على الزر أدناه إلى حذف <strong>جميع</strong> بيانات الدفتر نهائياً (الطلاب، الحضور، التنقيط، إلخ). لا يمكن التراجع عن هذا الإجراء.</p>
-                <button onclick="clearAllData()" class="btn btn-delete">مسح كل البيانات نهائياً</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modals and Print Containers -->
-<div id="qr-modal" class="modal"><div class="modal-content"><span class="close-btn" onclick="closeQrModal()">×</span><h4>رمز QR</h4><div id="qrcode-container"></div><div id="modal-student-info"></div></div></div>
-<div id="print-qr-container"></div>
-
-<script>
-    // === SCRIPT FOR NOTEBOOK NAVIGATION ===
-    function showSection(sectionId) {
-        document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-        document.getElementById(sectionId)?.classList.add('active');
-        document.querySelectorAll('.sidebar ul li').forEach(li => {
-            li.classList.toggle('active', li.getAttribute('onclick') === `showSection('${sectionId}')`);
-        });
-        if (sectionId !== 'attendance-system' && window.stopQrScanner) {
-            window.stopQrScanner();
-        }
-    }
-
-    // === ROW TEMPLATES FOR DYNAMIC TABLES ===
-    const ROW_TEMPLATES = {
-        'daily-log-tbody': `<tr><td><input type="date" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td><textarea class="notebook-textarea"></textarea></td><td><textarea class="notebook-textarea"></textarea></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-        'groups-tbody': `<tr><td><input type="text" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td><input type="number" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-        'school-diary-tbody': `<tr><td><input type="text" class="notebook-input"></td><td><input type="date" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-        'annual-dist-tbody': `<tr><td><input type="text" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td><textarea class="notebook-textarea"></textarea></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-        'training-tbody': `<tr><td><input type="date" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-        'inspection-tbody': `<tr><td><input type="date" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td><textarea class="notebook-textarea"></textarea></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-        'teachers-tbody': `<tr><td><input type="text" class="notebook-input"></td><td><input type="text" class="notebook-input"></td><td class="actions-cell"><button class="btn-delete-row" onclick="deleteRow(this)">🗑️</button></td></tr>`,
-    };
-
-    // === DYNAMIC TABLE SCRIPT ===
-    function addRow(tbodyId) {
-        const tbody = document.getElementById(tbodyId);
-        if (!tbody) return;
-        const template = ROW_TEMPLATES[tbodyId];
-        if (template) {
-            tbody.insertAdjacentHTML('beforeend', template);
-            saveSectionData(tbody.closest('.content-section').id);
-        }
-    }
-
-    function deleteRow(button) {
-        const row = button.closest('tr');
-        const tbody = row.parentElement;
-        const sectionId = tbody.closest('.content-section').id;
-        
-        row.remove();
-        if (tbody.rows.length === 0) {
-            addRow(tbody.id); // Add a new blank row if the last one was deleted
-        }
-        saveSectionData(sectionId);
-    }
-    
-    function generateSeatingChart(initialData = null) {
-        const colsInput = document.getElementById('seating-cols');
-        const rowsInput = document.getElementById('seating-rows');
-        const grid = document.getElementById('seating-grid-container');
-
-        const cols = initialData ? initialData.cols : parseInt(colsInput.value, 10);
-        const rows = initialData ? initialData.rows : parseInt(rowsInput.value, 10);
-        const seats = initialData ? initialData.seats : [];
-
-        if (isNaN(cols) || isNaN(rows) || cols <= 0 || rows <= 0) return;
-        
-        if (initialData) {
-            colsInput.value = cols;
-            rowsInput.value = rows;
-        }
-
-        grid.innerHTML = '';
-        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-
-        for (let i = 0; i < (rows * cols); i++) {
-            const seat = document.createElement('div');
-            seat.className = 'seat';
-            seat.innerHTML = `<input type="text" class="notebook-input" value="${seats[i] || ''}">`;
-            grid.appendChild(seat);
-        }
-        
-        if (!initialData) saveSectionData('seating-chart');
-    }
-    
-    // === DATA PERSISTENCE (AUTO-SAVE) ===
-    const SAVABLE_SECTIONS = [
-        "teacher-card", "school-diary", "assigned-groups", "daily-notebook",
-        "grading-book", "seating-chart", "annual-distribution", "training-days",
-        "inspection-visits", "teachers-list", "teacher-notepad", "weekly-schedule"
-    ];
-
-    function saveSectionData(sectionId) {
-        const section = document.getElementById(sectionId);
-        if (!section) return;
-
-        if (sectionId === 'seating-chart') {
-            const data = {
-                cols: document.getElementById('seating-cols').value,
-                rows: document.getElementById('seating-rows').value,
-                seats: Array.from(section.querySelectorAll('.seat input')).map(input => input.value)
-            };
-            localStorage.setItem(sectionId, JSON.stringify(data));
-            return;
-        }
-
-        if (sectionId === 'grading-book') {
-            if (window.currentGradingClass) {
-                const tableData = Array.from(document.querySelectorAll('#grading-tbody tr')).map(row => 
-                    Array.from(row.querySelectorAll('input, textarea')).map(cell => cell.value)
-                );
-                window.gradingData[window.currentGradingClass] = tableData;
-                localStorage.setItem('grading-book', JSON.stringify(window.gradingData));
-            }
-            return;
-        }
-        
-        if (sectionId === 'teacher-notepad') {
-             localStorage.setItem('teacher-notepad', JSON.stringify(window.resources));
-             return;
-        }
-
-        const type = section.dataset.type;
-        let data;
-
-        if (type === 'table') {
-            data = Array.from(section.querySelectorAll('tbody tr')).map(row => 
-                Array.from(row.querySelectorAll('input, textarea, select')).map(cell => cell.value)
-            );
-        } else if (type === 'map') {
-            data = {};
-            section.querySelectorAll('input, textarea').forEach(input => {
-                if(input.id) data[input.id] = input.value;
-            });
-        }
-        
-        if (data !== undefined) localStorage.setItem(sectionId, JSON.stringify(data));
-    }
-
-    function loadSectionData(sectionId) {
-        const data = JSON.parse(localStorage.getItem(sectionId));
-        const section = document.getElementById(sectionId);
-        if (!section) return;
-
-        if (!data) {
-            // Initialize empty sections
-            if (section.dataset.type === 'table') {
-                const tbody = section.querySelector('tbody');
-                if(tbody && tbody.children.length === 0) {
-                     if (sectionId === 'weekly-schedule') {
-                         ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'].forEach(day => {
-                            const rowHTML = `<tr><th>${day}</th>` + '<td><textarea class="notebook-textarea"></textarea></td>'.repeat(7) + '</tr>';
-                            tbody.insertAdjacentHTML('beforeend', rowHTML);
-                         });
-                     } else {
-                         addRow(tbody.id);
-                     }
-                }
-            } else {
-                if (sectionId === 'seating-chart') generateSeatingChart();
-                if (sectionId === 'grading-book') gradingBookInit();
-                if (sectionId === 'teacher-notepad') resourceNotepadInit();
-            }
-            return;
-        }
-        
-        if (sectionId === 'seating-chart') {
-            generateSeatingChart(data && data.cols ? data : null);
-            return;
-        }
-        if (sectionId === 'grading-book') {
-            gradingBookInit(data);
-            return;
-        }
-        if (sectionId === 'teacher-notepad') {
-            resourceNotepadInit(data);
-            return;
-        }
-
-        const type = section.dataset.type;
-
-        if (type === 'table') {
-            const tbody = section.querySelector('tbody');
-            tbody.innerHTML = '';
-            data.forEach(rowData => {
-                 const template = sectionId === 'weekly-schedule' ? 
-                    `<tr><th>${rowData[0]}</th>` + '<td><textarea class="notebook-textarea"></textarea></td>'.repeat(7) + '</tr>'
-                    : ROW_TEMPLATES[tbody.id];
-
-                 if (template) {
-                     tbody.insertAdjacentHTML('beforeend', template);
-                     const newRow = tbody.lastElementChild;
-                     const cells = newRow.querySelectorAll('input, textarea, select');
-                     const dataStartIndex = sectionId === 'weekly-schedule' ? 1 : 0;
-                     cells.forEach((cell, cIndex) => {
-                         cell.value = rowData[cIndex + dataStartIndex] || '';
-                     });
-                 }
-            });
-        } else if (type === 'map') {
-            Object.keys(data).forEach(key => {
-                const input = document.getElementById(key);
-                if (input) input.value = data[key];
-            });
-        }
-    }
-
-    // === EXPORT, IMPORT, and CLEAR ALL DATA ===
-    function exportAllData() {
-        const allData = {};
-        SAVABLE_SECTIONS.forEach(id => {
-            allData[id] = JSON.parse(localStorage.getItem(id)) || null;
-        });
-        allData.students = JSON.parse(localStorage.getItem('students')) || [];
-        
-        const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "interactive-notebook-backup.json";
-        a.click();
-        URL.revokeObjectURL(url);
-        document.getElementById("data-status").textContent = "✅ تم تصدير البيانات بنجاح";
-        document.getElementById("data-status").className = "status-message success";
-    }
-
-    function importAllData() {
-        const fileInput = document.getElementById("import-json");
-        const file = fileInput.files[0];
-        if (!file) {
-            document.getElementById("data-status").textContent = "⚠️ اختر ملف JSON أولا";
-            document.getElementById("data-status").className = "status-message error";
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                Object.keys(data).forEach(key => {
-                    if (data[key]) {
-                        localStorage.setItem(key, JSON.stringify(data[key]));
-                    }
-                });
-                document.getElementById("data-status").textContent = "✅ تم استيراد البيانات بنجاح! أعد تحميل الصفحة لعرضها.";
-                document.getElementById("data-status").className = "status-message success";
-            } catch (err) {
-                console.error(err);
-                document.getElementById("data-status").textContent = "❌ خطأ: الملف غير صالح";
-                document.getElementById("data-status").className = "status-message error";
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    function clearAllData() {
-        if (confirm("تحذير!\n\nهل أنت متأكد من رغبتك في حذف جميع بيانات الدفتر بشكل نهائي؟\n\nلا يمكن التراجع عن هذا الإجراء.")) {
-            localStorage.clear();
-            alert('تم حذف جميع البيانات بنجاح.');
-            location.reload();
-        }
-    }
-    
-    // === INITIALIZE PAGE AND SYSTEM MODULES ===
-    document.addEventListener('DOMContentLoaded', () => {
-        // Set up the app's global state
-        window.notebookApp = {
-            students: JSON.parse(localStorage.getItem('students')) || [],
-            liveAttendance: {}
-        };
-
-        showSection('welcome-page');
-        SAVABLE_SECTIONS.forEach(id => loadSectionData(id));
-        
-        document.getElementById('generate-seating-chart-btn').addEventListener('click', () => generateSeatingChart());
-        
-        document.getElementById('main-content-container').addEventListener('input', (e) => {
-            const section = e.target.closest('.content-section');
-            if (section && SAVABLE_SECTIONS.includes(section.id)) {
-                saveSectionData(section.id);
-            }
-        });
-
-        initializeAttendanceSystem();
-    });
-    
-    // --- Grading Book Module ---
-    window.gradingData = {};
-    window.currentGradingClass = null;
-
-    function gradingBookInit(data = {}) {
-        window.gradingData = data;
-        document.getElementById('add-grading-class-btn').addEventListener('click', addNewGradingClass);
-        document.getElementById('delete-grading-class-btn').addEventListener('click', deleteCurrentGradingClass);
-        document.getElementById('grading-class-select').addEventListener('change', (e) => switchGradingClassView(e.target.value));
-        document.getElementById('grading-book-table-container').addEventListener('input', handleGradeInputChange);
-        
-        updateClassSelector();
-        const classes = Object.keys(window.gradingData);
-        if (classes.length > 0) {
-            switchGradingClassView(classes[0]);
-        } else {
-            document.getElementById('grading-book-table-container').innerHTML = '<p style="text-align:center; padding: 20px;">لا توجد أقسام. الرجاء إضافة قسم للبدء.</p>';
-        }
-    }
-
-    function updateClassSelector() {
-        const classSelect = document.getElementById('grading-class-select');
-        const classes = Object.keys(window.gradingData);
-        classSelect.innerHTML = '';
-        classes.forEach(name => {
-            const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            classSelect.appendChild(option);
-        });
-        classSelect.value = window.currentGradingClass;
-    }
-
-    function addNewGradingClass() {
-        const input = document.getElementById('new-grading-class-name');
-        const className = input.value.trim();
-        if (className && !window.gradingData[className]) {
-            window.gradingData[className] = [];
-            window.currentGradingClass = className;
-            updateClassSelector();
-            switchGradingClassView(className);
-            input.value = '';
-        } else if (window.gradingData[className]) {
-            alert('هذا القسم موجود بالفعل.');
-        }
-    }
-    
-    function deleteCurrentGradingClass() {
-        if(window.currentGradingClass && confirm(`هل أنت متأكد من حذف دفتر تنقيط القسم "${window.currentGradingClass}"؟ لا يمكن التراجع عن هذا الإجراء.`)) {
-            delete window.gradingData[window.currentGradingClass];
-            const remainingClasses = Object.keys(window.gradingData);
-            window.currentGradingClass = remainingClasses.length > 0 ? remainingClasses[0] : null;
-            updateClassSelector();
-            switchGradingClassView(window.currentGradingClass);
-            saveSectionData('grading-book');
-        }
-    }
-    
-    function addStudentToGradebook() {
-        const tbody = document.getElementById('grading-tbody');
-        if (!tbody) return;
-        const newRowHTML = `<tr>
-            <td></td>
-            <td><input type="text" class="notebook-input grade-name"></td>
-            <td><input type="number" class="notebook-input grade-input" min="0" max="20" step="0.25"></td>
-            <td><input type="number" class="notebook-input grade-input" min="0" max="20" step="0.25"></td>
-            <td><input type="number" class="notebook-input grade-input" min="0" max="20" step="0.25"></td>
-            <td><input type="text" class="notebook-input grade-avg" readonly></td>
-            <td class="actions-cell"><button class="btn-delete-row" onclick="deleteGradeRow(this)">🗑️</button></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('beforeend', newRowHTML);
-        renumberGradebookTable();
-        saveSectionData('grading-book');
-    }
-
-    function deleteGradeRow(button) {
-        button.closest('tr').remove();
-        renumberGradebookTable();
-        saveSectionData('grading-book');
-    }
-
-    function renumberGradebookTable() {
-        document.querySelectorAll('#grading-tbody tr').forEach((row, index) => {
-            row.firstElementChild.textContent = String(index + 1).padStart(2, '0');
-        });
-    }
-    
-    function handleGradeInputChange(event) {
-        if (event.target.classList.contains('grade-input')) {
-            const row = event.target.closest('tr');
-            const inputs = row.querySelectorAll('.grade-input');
-            const g1 = parseFloat(inputs[0].value) || 0;
-            const g2 = parseFloat(inputs[1].value) || 0;
-            const test = parseFloat(inputs[2].value) || 0;
-            
-            if (inputs[0].value !== '' || inputs[1].value !== '' || inputs[2].value !== '') {
-                 const avg = (g1 + g2 + (test * 2)) / 4;
-                 row.querySelector('.grade-avg').value = avg.toFixed(2);
-            } else {
-                 row.querySelector('.grade-avg').value = '';
-            }
-        }
-        saveSectionData('grading-book');
-    }
-
-    function switchGradingClassView(className) {
-        window.currentGradingClass = className;
-        const container = document.getElementById('grading-book-table-container');
-        if (!className) {
-            container.innerHTML = '<p style="text-align:center; padding: 20px;">لا توجد أقسام. الرجاء إضافة قسم للبدء.</p>';
-            return;
-        }
-
-        container.innerHTML = `
-            <table>
-                <thead><tr><th>#</th><th>الاسم الكامل</th><th>الفرض 1</th><th>الفرض 2</th><th>الاختبار</th><th>المعدل</th><th class="actions-cell"></th></tr></thead>
-                <tbody id="grading-tbody"></tbody>
-            </table>
-            <div class="table-actions"><button class="btn-add-row" onclick="addStudentToGradebook()">➕ إضافة طالب</button></div>`;
-
-        const tbody = document.getElementById('grading-tbody');
-        const classData = window.gradingData[className] || [];
-        
-        if (classData.length > 0) {
-            classData.forEach(rowData => {
-                 const newRow = document.createElement('tr');
-                 newRow.innerHTML = `<td></td>
-                    <td><input type="text" class="notebook-input grade-name" value="${rowData[0] || ''}"></td>
-                    <td><input type="number" class="notebook-input grade-input" min="0" max="20" step="0.25" value="${rowData[1] || ''}"></td>
-                    <td><input type="number" class="notebook-input grade-input" min="0" max="20" step="0.25" value="${rowData[2] || ''}"></td>
-                    <td><input type="number" class="notebook-input grade-input" min="0" max="20" step="0.25" value="${rowData[3] || ''}"></td>
-                    <td><input type="text" class="notebook-input grade-avg" value="${rowData[4] || ''}" readonly></td>
-                    <td class="actions-cell"><button class="btn-delete-row" onclick="deleteGradeRow(this)">🗑️</button></td>`;
-                 tbody.appendChild(newRow);
-            });
-        }
-        renumberGradebookTable();
-        updateClassSelector();
-    }
-
-    // --- Resource Notepad Module ---
-    window.resources = [];
-    
-    function resourceNotepadInit(data = []) {
-        window.resources = data;
-        document.getElementById('add-resource-form').addEventListener('submit', addResource);
-        document.getElementById('resource-list-tbody').addEventListener('click', (e) => {
-            if (e.target.closest('.delete-resource-btn')) {
-                const index = e.target.closest('.delete-resource-btn').dataset.index;
-                deleteResource(index);
-            }
-        });
-        renderResourceList();
-    }
-    
-    function renderResourceList() {
-        const tbody = document.getElementById('resource-list-tbody');
-        tbody.innerHTML = '';
-        if (window.resources.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لم يتم إضافة أي موارد بعد.</td></tr>';
-            return;
-        }
-        window.resources.forEach((resource, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${resource.name}</td><td>${resource.category}</td><td>${resource.fileName || 'لا يوجد ملف'}</td><td>${resource.description}</td><td class="actions-cell"><button class="btn-delete-row delete-resource-btn" data-index="${index}">🗑️</button></td>`;
-            tbody.appendChild(row);
-        });
-    }
-
-    function addResource(e) {
-        e.preventDefault();
-        const fileInput = document.getElementById('resource-file');
-        const newResource = {
-            name: document.getElementById('resource-name').value,
-            category: document.getElementById('resource-category').value,
-            fileName: fileInput.files.length > 0 ? fileInput.files[0].name : null,
-            description: document.getElementById('resource-desc').value,
-        };
-        window.resources.push(newResource);
-        saveSectionData('teacher-notepad');
-        renderResourceList();
-        e.target.reset();
-    }
-    
-    function deleteResource(index) {
-        if(confirm(`هل أنت متأكد من حذف المورد "${window.resources[index].name}"؟`)) {
-            window.resources.splice(index, 1);
-            saveSectionData('teacher-notepad');
-            renderResourceList();
-        }
-    }
-
-
-    // --- Attendance System Module ---
-    function initializeAttendanceSystem() {
-        let html5QrCodeScanner = null;
-        const { students, liveAttendance } = window.notebookApp;
-        
-        const saveStudents = () => { 
-            localStorage.setItem('students', JSON.stringify(students)); 
-            renderStudentList(); 
-            renderManualAttendanceList(); 
-        };
-        const getCurrentDateString = () => new Date().toISOString().split('T')[0];
-        const getCurrentTimeString = () => new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-
-        // Cache DOM elements
-        const ui = {
-            addStudentForm: document.getElementById('add-student-form'),
-            importStudentsBtn: document.getElementById('import-students-btn'),
-            studentListBody: document.getElementById('student-list-body'),
-            totalStudentsCountEl: document.getElementById('total-students-count'),
-            exportStudentsCsvBtn: document.getElementById('export-students-csv-btn'),
-            printQrCardsBtn: document.getElementById('print-qr-cards-btn'),
-            downloadQrPdfBtn: document.getElementById('download-qr-pdf-btn'),
-            deleteAllStudentsBtn: document.getElementById('delete-all-students-btn'),
-            startScanBtn: document.getElementById('start-scan-btn'),
-            stopScanBtn: document.getElementById('stop-scan-btn'),
-            goToReportBtn: document.getElementById('go-to-report-btn'),
-            manualAttendanceListBody: document.getElementById('manual-attendance-list-body'),
-            saveManualAttendanceBtn: document.getElementById('save-manual-attendance-btn'),
-            reportView: document.getElementById('report-view'),
-            managementView: document.getElementById('management-view'),
-            backToManagementBtn: document.getElementById('back-to-management-btn'),
-            refreshReportBtn: document.getElementById('refresh-report-btn'),
-            exportReportCsvBtn: document.getElementById('export-report-csv-btn'),
-            exportReportPdfBtn: document.getElementById('export-report-pdf-btn')
-        };
-        
-        function showStatusMessage(elementId, message, type = 'info', duration = 5000) {
-            const element = document.getElementById(elementId);
-            if (!element) return;
-            element.textContent = message;
-            element.className = `status-message ${type}`;
-            if (duration > 0) {
-                setTimeout(() => { if (element.textContent === message) { element.textContent = ''; element.className = 'status-message'; }}, duration);
-            }
-        }
-        
-        function renderStudentList() {
-            ui.studentListBody.innerHTML = '';
-            ui.totalStudentsCountEl.textContent = students.length;
-            const hasStudents = students.length > 0;
-            [ui.exportStudentsCsvBtn, ui.printQrCardsBtn, ui.downloadQrPdfBtn, ui.deleteAllStudentsBtn].forEach(btn => btn.disabled = !hasStudents);
-
-            if (!hasStudents) {
-                ui.studentListBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لم يتم إضافة أي طلاب.</td></tr>';
-                return;
-            }
-            const sortedStudents = [...students].sort((a, b) => (a.firstName + " " + a.lastName).localeCompare(b.firstName + " " + b.lastName));
-            sortedStudents.forEach((student) => {
-                const index = students.findIndex(s => s.id === student.id);
-                const row = document.createElement('tr');
-                row.innerHTML = `<td>${student.id}</td><td>${student.firstName}</td><td>${student.lastName}</td><td>${student.className}</td><td><button class="btn btn-action btn-small show-qr-btn" data-index="${index}"><i class="fas fa-qrcode"></i></button> <button class="btn btn-delete btn-small delete-student-btn" data-index="${index}"><i class="fas fa-trash-alt"></i></button></td>`;
-                ui.studentListBody.appendChild(row);
-            });
-        }
-        
-        function renderManualAttendanceList() {
-            ui.manualAttendanceListBody.innerHTML = '';
-            if (students.length === 0) {
-                ui.manualAttendanceListBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">أضف الطلاب أولاً.</td></tr>';
-                return;
-            }
-            students.forEach(student => {
-                const isPresent = liveAttendance.hasOwnProperty(student.id);
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td style="width: 80px;"><input type="checkbox" class="manual-attendance-check" data-id="${student.id}" ${isPresent ? 'checked' : ''}></td>
-                    <td>${student.firstName} ${student.lastName}</td>
-                    <td>${student.className}</td>
-                `;
-                ui.manualAttendanceListBody.appendChild(row);
-            });
-        }
-
-        function showQrCode(index) {
-            const student = students[index];
-            if (!student) return;
-            document.getElementById('modal-student-info').textContent = `الطالب: ${student.firstName} ${student.lastName}`;
-            const qrcodeContainer = document.getElementById('qrcode-container');
-            qrcodeContainer.innerHTML = '';
-            try { new QRCode(qrcodeContainer, { text: student.id, width: 256, height: 256 }); document.getElementById('qr-modal').style.display = "block"; } catch (e) { console.error(e); }
-        }
-        window.closeQrModal = () => document.getElementById('qr-modal').style.display = "none";
-        
-        ui.addStudentForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const id = ui.addStudentForm.querySelector('#student-id').value.trim();
-            if (students.some(s => s.id === id)) { showStatusMessage('add-student-status', `رقم التعريف ${id} مستخدم.`, 'error'); return; }
-            students.push({ id, firstName: ui.addStudentForm.querySelector('#first-name').value.trim(), lastName: ui.addStudentForm.querySelector('#last-name').value.trim(), className: ui.addStudentForm.querySelector('#class-name').value.trim() });
-            saveStudents(); showStatusMessage('add-student-status', 'تمت الإضافة بنجاح.', 'success'); ui.addStudentForm.reset();
-        });
-
-        ui.studentListBody.addEventListener('click', (e) => {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            const index = btn.dataset.index;
-            if (btn.classList.contains('show-qr-btn')) showQrCode(index);
-            if (btn.classList.contains('delete-student-btn')) {
-                if (confirm(`تأكيد حذف الطالب ${students[index].firstName}?`)) {
-                    students.splice(index, 1);
-                    saveStudents();
-                }
-            }
-        });
-        
-        ui.importStudentsBtn.addEventListener('click', () => {
-            const file = document.getElementById('import-file').files[0];
-            if (!file) { showStatusMessage('import-status', "اختر ملف أولاً.", 'error'); return; }
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                let parsedData;
-                if (file.name.endsWith('.csv')) { parsedData = Papa.parse(event.target.result, { header: true, skipEmptyLines: true }).data; } 
-                else { const workbook = XLSX.read(event.target.result, { type: 'array' }); parsedData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]); }
-                
-                let importedCount = 0, skippedCount = 0;
-                parsedData.forEach(row => {
-                    const keys = Object.keys(row);
-                    const id = String(row[keys[0]] || '').trim();
-                    const firstName = String(row[keys[1]] || '').trim();
-                    const lastName = String(row[keys[2]] || '').trim();
-                    const className = String(row[keys[3]] || '').trim();
-                    if(id && firstName && !students.some(s => s.id === id)) { students.push({ id, firstName, lastName, className }); importedCount++; } else { skippedCount++; }
-                });
-                saveStudents(); showStatusMessage('import-status', `تم استيراد ${importedCount} طالب وتخطي ${skippedCount}.`, 'success');
-            };
-            if (file.name.endsWith('.csv')) reader.readAsText(file); else reader.readAsArrayBuffer(file);
-        });
-
-        function onScanSuccess(decodedText) {
-            const student = students.find(s => s.id === decodedText.trim());
-            if (student) {
-                const time = getCurrentTimeString();
-                if (!liveAttendance[student.id]) { 
-                    liveAttendance[student.id] = time; 
-                    showStatusMessage('qr-scan-status', `تم تسجيل: ${student.firstName} في ${time}`, 'success');
-                    renderManualAttendanceList();
-                } else { 
-                    showStatusMessage('qr-scan-status', `${student.firstName} مسجل بالفعل.`, 'info'); 
-                }
-            } else { showStatusMessage('qr-scan-status', `رقم التعريف ${decodedText} غير موجود.`, 'error'); }
-        }
-
-        function startQrScanner() {
-            ui.startScanBtn.style.display = 'none'; ui.stopScanBtn.style.display = 'inline-flex'; document.getElementById('qr-reader').style.display = 'block'; showStatusMessage('qr-scan-status', 'جاري تفعيل الكاميرا...', 'info', 0);
-            try { html5QrCodeScanner = new Html5Qrcode("qr-reader"); html5QrCodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: {width: 250, height: 250} }, onScanSuccess, ()=>{}); } catch(e) { console.error(e); }
-        }
-        window.stopQrScanner = function() { if (html5QrCodeScanner && html5QrCodeScanner.isScanning) { try { html5QrCodeScanner.stop(); } catch(e) { console.error(e); } } ui.startScanBtn.style.display = 'inline-flex'; ui.stopScanBtn.style.display = 'none'; document.getElementById('qr-reader').style.display = 'none'; showStatusMessage('qr-scan-status', 'تم إيقاف الماسح.', 'info'); };
-        ui.startScanBtn.addEventListener('click', startQrScanner);
-        ui.stopScanBtn.addEventListener('click', window.stopQrScanner);
-        
-        ui.saveManualAttendanceBtn.addEventListener('click', () => {
-            const checkboxes = document.querySelectorAll('.manual-attendance-check');
-            let changes = 0;
-            checkboxes.forEach(box => {
-                const id = box.dataset.id;
-                if(box.checked && !liveAttendance[id]) {
-                    liveAttendance[id] = getCurrentTimeString();
-                    changes++;
-                } else if (!box.checked && liveAttendance[id]) {
-                    delete liveAttendance[id];
-                    changes++;
-                }
-            });
-            showStatusMessage('manual-attendance-status', `تم حفظ ${changes} تغييرات بنجاح.`, 'success');
-        });
-
-        ui.deleteAllStudentsBtn.addEventListener('click', () => {
-            if (confirm("تحذير!\nهل أنت متأكد من رغبتك في حذف جميع الطلاب من القائمة؟\nلا يمكن التراجع عن هذا الإجراء.")) {
-                students.length = 0; // Clear the array
-                saveStudents();
-                showStatusMessage('add-student-status', 'تم حذف جميع الطلاب بنجاح.', 'success');
-            }
-        });
-        
-        // --- Report View Logic ---
-        function switchView(viewToShow) {
-            [ui.managementView, ui.reportView].forEach(v => v.classList.remove('active-view'));
-            viewToShow.classList.add('active-view');
-        }
-
-        ui.goToReportBtn.addEventListener('click', () => { 
-            document.getElementById('report-date').value = getCurrentDateString(); 
-            generateAndDisplayReport();
-            switchView(ui.reportView);
-        });
-        ui.backToManagementBtn.addEventListener('click', () => switchView(ui.managementView));
-        ui.refreshReportBtn.addEventListener('click', generateAndDisplayReport);
-        
-        function generateAndDisplayReport() {
-            let presentCount = 0;
-            const presentListBody = document.getElementById('present-list-body');
-            const absentListBody = document.getElementById('absent-list-body');
-            presentListBody.innerHTML = ''; absentListBody.innerHTML = '';
-
-            students.forEach(student => {
-                const time = liveAttendance[student.id];
-                const studentFullName = `${student.firstName} ${student.lastName}`;
-                if (time) { 
-                    presentListBody.innerHTML += `<tr><td>${studentFullName}</td><td>${student.className}</td><td>${time}</td></tr>`; 
-                    presentCount++; 
-                } else { 
-                    absentListBody.innerHTML += `<tr><td>${studentFullName}</td><td>${student.className}</td></tr>`; 
-                }
-            });
-            const total = students.length;
-            const absentCount = total - presentCount;
-            document.getElementById('attendance-percentage').textContent = total > 0 ? `${((presentCount / total) * 100).toFixed(1)}%` : '0%';
-            document.getElementById('present-count').textContent = presentCount; 
-            document.getElementById('absent-count').textContent = absentCount; 
-            [ui.exportReportCsvBtn, ui.exportReportPdfBtn].forEach(btn => btn.disabled = total === 0);
-        }
-
-        // --- Export and Print/PDF Functions (REBUILT) ---
-        function exportStudentsToCsv() {
-            const rows = [["ID", "FirstName", "LastName", "Class"], ...students.map(s => [s.id, s.firstName, s.lastName, s.className])];
-            const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(r => r.join(",")).join("\n");
-            const link = document.createElement("a");
-            link.setAttribute("href", encodeURI(csvContent));
-            link.setAttribute("download", `students_${getCurrentDateString()}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-        ui.exportStudentsCsvBtn.addEventListener('click', exportStudentsToCsv);
-        
-        function exportAttendanceReportToCsv() {
-            const reportDate = document.getElementById('report-date').value;
-            const rows = [["الاسم الكامل", "القسم", "الحالة", "وقت الحضور"]];
-            students.forEach(s => {
-                const time = liveAttendance[s.id];
-                const status = time ? 'حاضر' : 'غائب';
-                rows.push([`${s.firstName} ${s.lastName}`, s.className, status, time || '']);
-            });
-            const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(r => r.join(",")).join("\n");
-            const link = document.createElement("a");
-            link.setAttribute("href", encodeURI(csvContent));
-            link.setAttribute("download", `attendance_report_${reportDate}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-        ui.exportReportCsvBtn.addEventListener('click', exportAttendanceReportToCsv);
-
-        function printQrCards() {
-            const container = document.getElementById('print-qr-container');
-            container.innerHTML = ''; 
-            const page = document.createElement('div');
-            page.className = 'print-page';
-            page.style.cssText = `display: grid; grid-template-columns: repeat(4, 1fr); gap: 8mm; padding: 10mm;`;
-            container.appendChild(page);
-
-            students.forEach(student => {
-                const card = document.createElement('div');
-                card.style.cssText = `border: 1px solid #999; text-align: center; padding: 5mm; break-inside: avoid;`;
-                const qrDiv = document.createElement('div');
-                qrDiv.style.margin = '0 auto 5px auto';
-                const infoDiv = document.createElement('div');
-                infoDiv.innerHTML = `<p style="font-weight:bold; font-size: 11pt; margin:0;">${student.firstName} ${student.lastName}</p><p style="font-size: 9pt; margin:0;">ID: ${student.id}</p>`;
-                card.append(qrDiv, infoDiv);
-                page.appendChild(card);
-                new QRCode(qrDiv, { text: student.id, width: 120, height: 120, correctLevel : QRCode.CorrectLevel.H });
-            });
-            setTimeout(() => window.print(), 250);
-        }
-        ui.printQrCardsBtn.addEventListener('click', printQrCards);
-        
-        async function downloadQrCardsAsPdf() {
-            ui.downloadQrPdfBtn.disabled = true;
-            ui.downloadQrPdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإنشاء...';
-            
-            try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                
-                // Load font
-                try {
-                    const font = await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf').then(res => res.arrayBuffer());
-                    pdf.addFileToVFS("Amiri-Regular.ttf", new Uint8Array(font).toString('binary'));
-                    pdf.addFont("Amiri-Regular.ttf", "Amiri", "normal");
-                    pdf.setFont("Amiri");
-                } catch(e) {
-                    console.warn("Could not load Amiri font. Using default font.");
-                }
-
-                const PAGE_WIDTH = 210, PAGE_HEIGHT = 297;
-                const MARGIN = 10;
-                const CARD_WIDTH = 45, CARD_HEIGHT = 55;
-                const GAP = 5;
-                const QR_SIZE = 35; 
-
-                const COLS = Math.floor((PAGE_WIDTH - 2 * MARGIN + GAP) / (CARD_WIDTH + GAP));
-                const ROWS = Math.floor((PAGE_HEIGHT - 2 * MARGIN + GAP) / (CARD_HEIGHT + GAP));
-                const CARDS_PER_PAGE = COLS * ROWS;
-
-                for (let i = 0; i < students.length; i++) {
-                    const student = students[i];
-                    
-                    if (i > 0 && i % CARDS_PER_PAGE === 0) {
-                        pdf.addPage();
-                    }
-                    
-                    const indexOnPage = i % CARDS_PER_PAGE;
-                    const col = indexOnPage % COLS;
-                    const row = Math.floor(indexOnPage / COLS);
-                    
-                    const x = MARGIN + col * (CARD_WIDTH + GAP);
-                    const y = MARGIN + row * (CARD_HEIGHT + GAP);
-                    
-                    pdf.setDrawColor(150);
-                    pdf.rect(x, y, CARD_WIDTH, CARD_HEIGHT);
-                    
-                    const tempQrDiv = document.createElement('div');
-                    new QRCode(tempQrDiv, { text: student.id, width: 128, height: 128 });
-                    const qrDataUrl = tempQrDiv.querySelector('canvas').toDataURL('image/png');
-                    pdf.addImage(qrDataUrl, 'PNG', x + (CARD_WIDTH - QR_SIZE) / 2, y + 3, QR_SIZE, QR_SIZE);
-                    
-                    pdf.setFontSize(11);
-                    pdf.text(`${student.firstName} ${student.lastName}`, x + CARD_WIDTH / 2, y + QR_SIZE + 9, { align: 'center' });
-                    pdf.setFontSize(9);
-                    pdf.text(`ID: ${student.id}`, x + CARD_WIDTH / 2, y + QR_SIZE + 14, { align: 'center' });
-                }
-
-                pdf.save(`student-qr-cards_${getCurrentDateString()}.pdf`);
-
-            } catch (error) {
-                console.error("Error generating PDF:", error);
-                alert("حدث خطأ أثناء إنشاء ملف PDF. قد يكون بسبب مشكلة في الاتصال بالإنترنت لتحميل الخط.");
-            } finally {
-                ui.downloadQrPdfBtn.disabled = false;
-                ui.downloadQrPdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> تنزيل (PDF)';
-            }
-        }
-        ui.downloadQrPdfBtn.addEventListener('click', downloadQrCardsAsPdf);
-
-        async function downloadAttendanceReportAsPdf() {
-            ui.exportReportPdfBtn.disabled = true;
-            ui.exportReportPdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإنشاء...';
-
-            try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                
-                try {
-                    const font = await fetch('https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf').then(res => res.arrayBuffer());
-                    pdf.addFileToVFS("Amiri-Regular.ttf", new Uint8Array(font).toString('binary'));
-                    pdf.addFont("Amiri-Regular.ttf", "Amiri", "normal");
-                    pdf.setFont("Amiri");
-                } catch(e) {
-                     console.warn("Could not load Amiri font. Using default font.");
-                }
-
-                const MARGIN = 10;
-                let y = MARGIN + 10;
-                const reportDate = document.getElementById('report-date').value;
-
-                // Title
-                pdf.setFontSize(18);
-                pdf.text("تقرير الحضور اليومي", pdf.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-                y += 8;
-                pdf.setFontSize(12);
-                pdf.text(`تاريخ: ${reportDate}`, pdf.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-                y += 15;
-
-                // Summary
-                const presentCount = Object.keys(liveAttendance).length;
-                const absentCount = students.length - presentCount;
-                const attendancePercentage = students.length > 0 ? ((presentCount / students.length) * 100).toFixed(1) : 0;
-                const summaryText = `الحاضرون: ${presentCount} | الغائبون: ${absentCount} | نسبة الحضور: ${attendancePercentage}%`;
-                pdf.text(summaryText, pdf.internal.pageSize.getWidth() - MARGIN, y, { align: 'right' });
-                y += 15;
-
-                // Table function
-                const drawTable = (title, data, headers, startY) => {
-                    pdf.setFontSize(14);
-                    pdf.text(title, pdf.internal.pageSize.getWidth() - MARGIN, startY, { align: 'right' });
-                    startY += 8;
-
-                    const rowHeight = 10;
-                    const colWidths = [25, 60, 105]; // time, class, name
-                    let x = pdf.internal.pageSize.getWidth() - MARGIN;
-                    
-                    // Headers
-                    pdf.setFontSize(11);
-                    pdf.setFillColor(230, 230, 230);
-                    pdf.rect(MARGIN, startY, pdf.internal.pageSize.getWidth() - 2 * MARGIN, rowHeight, 'F');
-                    let currentX = x;
-                    headers.forEach((header, i) => {
-                         pdf.text(header, currentX - colWidths[i] / 2, startY + 7, { align: 'center' });
-                         currentX -= colWidths[i];
-                    });
-                    startY += rowHeight;
-
-                    // Data
-                    pdf.setFontSize(10);
-                    data.forEach(item => {
-                        if (startY > pdf.internal.pageSize.getHeight() - 20) {
-                            pdf.addPage();
-                            startY = MARGIN;
-                        }
-                        currentX = x;
-                        item.forEach((cell, i) => {
-                             pdf.text(cell, currentX, startY + 7, { align: 'right' });
-                             currentX -= colWidths[i];
-                        });
-                        startY += rowHeight;
-                    });
-                    return startY + 10;
-                };
-
-                const presentData = students.filter(s => liveAttendance[s.id]).map(s => [liveAttendance[s.id], s.className, `${s.firstName} ${s.lastName}`]);
-                const absentData = students.filter(s => !liveAttendance[s.id]).map(s => ['', s.className, `${s.firstName} ${s.lastName}`]);
-                
-                y = drawTable("قائمة الحاضرين", presentData, ["وقت الحضور", "القسم", "الاسم الكامل"], y);
-                y = drawTable("قائمة الغائبين", absentData, ["", "القسم", "الاسم الكامل"], y);
-
-                pdf.save(`attendance_report_${reportDate}.pdf`);
-
-            } catch (error) {
-                console.error("Error generating PDF report:", error);
-                alert("حدث خطأ أثناء إنشاء تقرير PDF.");
-            } finally {
-                ui.exportReportPdfBtn.disabled = false;
-                ui.exportReportPdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> تنزيل (PDF)';
-            }
-        }
-        ui.exportReportPdfBtn.addEventListener('click', downloadAttendanceReportAsPdf);
-
-        // Initial render on load
-        renderStudentList();
-        renderManualAttendanceList();
-    }
-</script>
-
-</body>
-</html>
